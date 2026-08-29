@@ -34434,10 +34434,10 @@ async function getCacheProvider() {
     let cache;
     switch (cacheProvider) {
         case "github":
-            cache = await import('./cache-BbR-2h5U.js');
+            cache = await import('./cache-BZ_HifoD.js');
             break;
         case "warpbuild":
-            cache = await import('./cache-CeQz0UrA.js');
+            cache = await import('./cache-sCtauepl.js');
             break;
         default:
             throw new Error(`The \`cache-provider\` \`${cacheProvider}\` is not valid.`);
@@ -34490,6 +34490,23 @@ class Workspace {
     }
     async getWorkspaceMembers(cmdFormat) {
         return await this.getPackages(cmdFormat, (_) => true, "--no-deps");
+    }
+    /**
+     * Every package built from a local path rather than fetched from a registry.
+     *
+     * This is a strict superset of `getWorkspaceMembers`, and the difference is
+     * the bug it exists to fix: a path dependency pointing INTO a directory that
+     * `workspace.exclude` removes from the workspace is neither a member nor
+     * "outside the workspace root", so it falls through both of the other
+     * filters and its artifacts are pruned on every save - even though it is as
+     * expensive to rebuild as any dependency, and is never a cheap-to-recompile
+     * workspace crate.
+     *
+     * `source === null` is cargo's own marker for "local", so registry packages
+     * are unaffected and keep being handled by getPackagesOutsideWorkspaceRoot.
+     */
+    async getLocalPackages(cmdFormat) {
+        return await this.getPackages(cmdFormat, (pkg) => pkg.source === null);
     }
 }
 

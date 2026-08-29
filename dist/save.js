@@ -1,4 +1,4 @@
-import { e as error, g as getCacheProvider, a as getInput, d as isCacheUpToDate, i as info, C as CacheConfig, c as cleanTargetDir, f as debug, h as cleanRegistry, j as cleanBin, k as cleanGit, r as reportError, l as exec } from './cleanup-CasGxZuQ.js';
+import { e as error, g as getCacheProvider, a as getInput, d as isCacheUpToDate, i as info, C as CacheConfig, c as cleanTargetDir, f as debug, h as cleanRegistry, j as cleanBin, k as cleanGit, r as reportError, l as exec } from './cleanup-DAm0mJXM.js';
 import 'os';
 import 'crypto';
 import 'fs';
@@ -63,8 +63,12 @@ async function run() {
         for (const workspace of config.workspaces) {
             const packages = await workspace.getPackagesOutsideWorkspaceRoot(config.cmdFormat);
             if (workspaceCrates === "true") {
-                const wsMembers = await workspace.getWorkspaceMembers(config.cmdFormat);
-                packages.push(...wsMembers);
+                // All LOCAL packages, not just workspace members. A path dependency
+                // into an excluded directory is neither a member nor outside the
+                // workspace root, so it would otherwise be pruned every save and
+                // rebuilt from scratch every run.
+                const local = await workspace.getLocalPackages(config.cmdFormat);
+                packages.push(...local);
             }
             allPackages.push(...packages);
             try {

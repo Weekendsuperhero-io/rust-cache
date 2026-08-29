@@ -44,6 +44,24 @@ export class Workspace {
   public async getWorkspaceMembers(cmdFormat: string): Promise<Packages> {
     return await this.getPackages(cmdFormat, (_) => true, "--no-deps");
   }
+
+  /**
+   * Every package built from a local path rather than fetched from a registry.
+   *
+   * This is a strict superset of `getWorkspaceMembers`, and the difference is
+   * the bug it exists to fix: a path dependency pointing INTO a directory that
+   * `workspace.exclude` removes from the workspace is neither a member nor
+   * "outside the workspace root", so it falls through both of the other
+   * filters and its artifacts are pruned on every save - even though it is as
+   * expensive to rebuild as any dependency, and is never a cheap-to-recompile
+   * workspace crate.
+   *
+   * `source === null` is cargo's own marker for "local", so registry packages
+   * are unaffected and keep being handled by getPackagesOutsideWorkspaceRoot.
+   */
+  public async getLocalPackages(cmdFormat: string): Promise<Packages> {
+    return await this.getPackages(cmdFormat, (pkg) => pkg.source === null);
+  }
 }
 
 export interface PackageDefinition {
@@ -60,6 +78,8 @@ interface Meta {
     name: string;
     version: string;
     manifest_path: string;
+    /** `null` for path/local packages; a registry URL otherwise. */
+    source: string | null;
     targets: Array<{ kind: Array<string>; name: string }>;
   }>;
 }

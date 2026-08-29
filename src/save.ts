@@ -41,8 +41,12 @@ async function run() {
     for (const workspace of config.workspaces) {
       const packages = await workspace.getPackagesOutsideWorkspaceRoot(config.cmdFormat);
       if (workspaceCrates === "true") {
-        const wsMembers = await workspace.getWorkspaceMembers(config.cmdFormat);
-        packages.push(...wsMembers);
+        // All LOCAL packages, not just workspace members. A path dependency
+        // into an excluded directory is neither a member nor outside the
+        // workspace root, so it would otherwise be pruned every save and
+        // rebuilt from scratch every run.
+        const local = await workspace.getLocalPackages(config.cmdFormat);
+        packages.push(...local);
       }
       allPackages.push(...packages);
       try {
