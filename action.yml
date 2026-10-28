@@ -34,7 +34,7 @@ inputs:
     required: false
     default: "true"
   cache-on-failure:
-    description: "Cache even if the build fails. Defaults to false."
+    description: "Cache even if the build fails. A cancelled job never saves. Defaults to false."
     required: false
   cache-all-crates:
     description: "Determines which crates are cached. If `true` all crates will be cached, otherwise only dependent crates will be cached."
@@ -71,7 +71,10 @@ runs:
   using: "node24"
   main: "dist/restore.js"
   post: "dist/save.js"
-  post-if: "success() || env.CACHE_ON_FAILURE == 'true'"
+  # A cancelled job saves nothing, whatever cache-on-failure says: its build
+  # stopped part way, and saved first under a key, a partial build is what
+  # every later job restores as a full match.
+  post-if: "success() || (failure() && env.CACHE_ON_FAILURE == 'true')"
 branding:
   icon: "archive"
   color: "gray-dark"

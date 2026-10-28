@@ -1,4 +1,4 @@
-import { e as error, g as getCacheProvider, a as getInput, b as exportVariable, C as CacheConfig, i as info, c as cleanTargetDir, r as reportError, s as setOutput } from './cleanup-DAm0mJXM.js';
+import { e as error, g as getCacheProvider, a as getInput, b as exportVariable, C as CacheConfig, i as info, w as warning, c as cleanTargetDir, r as reportError, s as setOutput } from './cleanup-Bdsg6wre.js';
 import 'os';
 import 'crypto';
 import 'fs';
@@ -62,13 +62,30 @@ async function run() {
         // Pass a copy of cachePaths to avoid mutating the original array as reported by:
         // https://github.com/actions/toolkit/pull/1378
         // TODO: remove this once the underlying bug is fixed.
-        const restoreKey = await cacheProvider.cache.restoreCache(config.cachePaths.slice(), key, [config.restoreKey], {
-            lookupOnly,
+        const restore = (only) => cacheProvider.cache.restoreCache(config.cachePaths.slice(), key, [config.restoreKey], {
+            lookupOnly: only,
         });
-        if (restoreKey) {
-            const match = restoreKey.localeCompare(key, undefined, {
-                sensitivity: "accent",
-            }) === 0;
+        // What the backend holds, asked before downloading anything. A download
+        // that fails comes back from `restoreCache` as `undefined`, the same as a
+        // miss, and a miss arms the save. GitHub refuses a save to a key it
+        // already holds, but a backend that lets the later save win (Bitrise's
+        // GitHub Actions cache does) would then keep whatever this job writes,
+        // even a partial build, for every job after it.
+        const found = lookupOnly ? undefined : await restore(true);
+        let restoreKey = await restore(lookupOnly);
+        if (!restoreKey && found) {
+            warning(`Found cache key "${found}" but could not restore it. Trying once more.`);
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+            restoreKey = await restore(false);
+        }
+        if (!restoreKey && found && sameKey(found, key)) {
+            warning(`Cache key "${key}" exists but could not be restored. Building without it, and not saving over it.`);
+            // No saveState: the post step must not replace an entry that other
+            // jobs can still restore.
+            setCacheHitOutput(false);
+        }
+        else if (restoreKey) {
+            const match = sameKey(restoreKey, key);
             info(`${lookupOnly ? "Found" : "Restored from"} cache key "${restoreKey}" full match: ${match}.`);
             if (!match) {
                 // pre-clean the target directory on cache mismatch
@@ -84,7 +101,7 @@ async function run() {
             setCacheHitOutput(match);
         }
         else {
-            info("No cache found.");
+            info(found ? `Could not restore cache key "${found}".` : "No cache found.");
             config.saveState();
             setCacheHitOutput(false);
         }
@@ -94,6 +111,9 @@ async function run() {
         reportError(e);
     }
     process.exit();
+}
+function sameKey(a, b) {
+    return a.localeCompare(b, undefined, { sensitivity: "accent" }) === 0;
 }
 function setCacheHitOutput(cacheHit) {
     setOutput("cache-hit", cacheHit.toString());
