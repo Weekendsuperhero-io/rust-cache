@@ -61,6 +61,7 @@ sensible defaults.
     cache-targets: ""
 
     # Determines if the cache should be saved even when the workflow has failed.
+    # A cancelled job never saves.
     # default: "false"
     cache-on-failure: ""
 
