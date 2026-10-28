@@ -1,4 +1,4 @@
-import { e as error, g as getCacheProvider, a as getInput, b as exportVariable, C as CacheConfig, i as info, w as warning, c as cleanTargetDir, r as reportError, s as setOutput } from './cleanup-Bdsg6wre.js';
+import { e as error, g as getCacheProvider, a as getInput, b as exportVariable, C as CacheConfig, i as info, w as warning, c as cleanTargetDir, r as reportError, s as setOutput } from './cleanup-B9MWY_wk.js';
 import 'os';
 import 'crypto';
 import 'fs';
@@ -52,6 +52,7 @@ async function run() {
             cacheOnFailure = "false";
         }
         var lookupOnly = getInput("lookup-only").toLowerCase() === "true";
+        const refresh = getInput("refresh").toLowerCase() === "true";
         exportVariable("CACHE_ON_FAILURE", cacheOnFailure);
         exportVariable("CARGO_INCREMENTAL", 0);
         const config = await CacheConfig.new();
@@ -62,7 +63,7 @@ async function run() {
         // Pass a copy of cachePaths to avoid mutating the original array as reported by:
         // https://github.com/actions/toolkit/pull/1378
         // TODO: remove this once the underlying bug is fixed.
-        const restore = (only) => cacheProvider.cache.restoreCache(config.cachePaths.slice(), key, [config.restoreKey], {
+        const restore = (only) => cacheProvider.cache.restoreCache(config.cachePaths.slice(), key, config.restoreKeys.slice(), {
             lookupOnly: only,
         });
         // What the backend holds, asked before downloading anything. A download
@@ -78,7 +79,7 @@ async function run() {
             await new Promise((resolve) => setTimeout(resolve, 5000));
             restoreKey = await restore(false);
         }
-        if (!restoreKey && found && sameKey(found, key)) {
+        if (!restoreKey && found && sameKey(found, key) && !refresh) {
             warning(`Cache key "${key}" exists but could not be restored. Building without it, and not saving over it.`);
             // No saveState: the post step must not replace an entry that other
             // jobs can still restore.
@@ -96,6 +97,13 @@ async function run() {
                     catch { }
                 }
                 // We restored the cache but it is not a full match.
+                config.saveState();
+            }
+            else if (refresh) {
+                // A full match never saves, so the entry would keep the build of the
+                // commit that first wrote it. Refresh saves this run's build over it,
+                // on a backend where a later save replaces an entry (Bitrise's).
+                info(`Refresh is on: this run's build will replace "${key}".`);
                 config.saveState();
             }
             setCacheHitOutput(match);

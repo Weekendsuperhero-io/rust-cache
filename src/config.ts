@@ -26,6 +26,8 @@ export class CacheConfig {
   public cacheKey = "";
   /** The secondary (restore) key that only contains the prefix and environment */
   public restoreKey = "";
+  /** The keys a restore tries after `cacheKey`, in order. */
+  public restoreKeys: Array<string> = [];
 
   /** Whether to cache CARGO_HOME/.bin */
   public cacheBin: boolean = true;
@@ -261,6 +263,18 @@ export class CacheConfig {
     }
 
     self.cacheKey = key;
+    self.restoreKeys = [self.restoreKey];
+
+    // A commit-suffixed key, for a backend that keeps the FIRST save of a key
+    // (WarpBuild and GitHub refuse a second one). A refreshing run saves a new
+    // key, and every run restores the `restore-suffix` entry (the merge base),
+    // then the newest entry for this lockfile, then any for this environment.
+    const keySuffix = core.getInput("key-suffix").trim();
+    const restoreSuffix = core.getInput("restore-suffix").trim();
+    if (keySuffix) {
+      self.cacheKey = `${key}-${keySuffix}`;
+      self.restoreKeys = [...(restoreSuffix ? [`${key}-${restoreSuffix}`] : []), key, self.restoreKey];
+    }
 
     self.cachePaths = [path.join(CARGO_HOME, "registry"), path.join(CARGO_HOME, "git")];
     if (self.cacheBin) {
@@ -323,8 +337,10 @@ export class CacheConfig {
     for (const path of this.cachePaths) {
       core.info(`    ${path}`);
     }
-    core.info(`Restore Key:`);
-    core.info(`    ${this.restoreKey}`);
+    core.info(`Restore Keys:`);
+    for (const key of this.restoreKeys) {
+      core.info(`    ${key}`);
+    }
     core.info(`Cache Key:`);
     core.info(`    ${this.cacheKey}`);
     core.info(`.. Prefix:`);

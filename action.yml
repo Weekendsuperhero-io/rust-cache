@@ -56,6 +56,18 @@ inputs:
     description: "Determines whether to cache ${CARGO_HOME}/bin."
     required: false
     default: "true"
+  refresh:
+    description: "Save even after an exact match, so the entry follows the latest build. For a backend where a later save replaces an entry (Bitrise). Use it only where the run must succeed to save (cache-on-failure false). Defaults to false."
+    required: false
+    default: "false"
+  key-suffix:
+    description: "Appended to the cache key, e.g. the commit. For a backend that keeps the first save of a key (WarpBuild, GitHub): each refreshing run saves a new key, and restores try `restore-suffix`, then the newest entry for this lockfile."
+    required: false
+    default: ""
+  restore-suffix:
+    description: "With key-suffix: the suffix to restore first, e.g. the merge base's commit."
+    required: false
+    default: ""
   lookup-only:
     description: "Check if a cache entry exists without downloading the cache"
     required: false

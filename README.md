@@ -60,6 +60,20 @@ sensible defaults.
     # default: "true"
     cache-targets: ""
 
+    # Save even after an exact match, so the entry follows the latest build.
+    # For a backend where a later save replaces an entry (Bitrise). Pair it
+    # with cache-on-failure false: a refresh replaces what every job restores.
+    # default: "false"
+    refresh: ""
+
+    # Appended to the cache key (e.g. the commit), for a backend that keeps the
+    # first save of a key (WarpBuild, GitHub). Restores then try restore-suffix
+    # (e.g. the merge base's commit), the newest entry for this lockfile, and
+    # any entry for this environment, in that order.
+    # default: ""
+    key-suffix: ""
+    restore-suffix: ""
+
     # Determines if the cache should be saved even when the workflow has failed.
     # A cancelled job never saves.
     # default: "false"

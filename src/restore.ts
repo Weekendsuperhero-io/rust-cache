@@ -25,6 +25,7 @@ async function run() {
       cacheOnFailure = "false";
     }
     var lookupOnly = core.getInput("lookup-only").toLowerCase() === "true";
+    const refresh = core.getInput("refresh").toLowerCase() === "true";
 
     core.exportVariable("CACHE_ON_FAILURE", cacheOnFailure);
     core.exportVariable("CARGO_INCREMENTAL", 0);
@@ -39,7 +40,7 @@ async function run() {
     // https://github.com/actions/toolkit/pull/1378
     // TODO: remove this once the underlying bug is fixed.
     const restore = (only: boolean) =>
-      cacheProvider.cache.restoreCache(config.cachePaths.slice(), key, [config.restoreKey], {
+      cacheProvider.cache.restoreCache(config.cachePaths.slice(), key, config.restoreKeys.slice(), {
         lookupOnly: only,
       });
 
@@ -56,7 +57,7 @@ async function run() {
       await new Promise((resolve) => setTimeout(resolve, 5000));
       restoreKey = await restore(false);
     }
-    if (!restoreKey && found && sameKey(found, key)) {
+    if (!restoreKey && found && sameKey(found, key) && !refresh) {
       core.warning(
         `Cache key "${key}" exists but could not be restored. Building without it, and not saving over it.`,
       );
@@ -75,6 +76,12 @@ async function run() {
         }
 
         // We restored the cache but it is not a full match.
+        config.saveState();
+      } else if (refresh) {
+        // A full match never saves, so the entry would keep the build of the
+        // commit that first wrote it. Refresh saves this run's build over it,
+        // on a backend where a later save replaces an entry (Bitrise's).
+        core.info(`Refresh is on: this run's build will replace "${key}".`);
         config.saveState();
       }
 

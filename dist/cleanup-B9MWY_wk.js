@@ -34434,10 +34434,10 @@ async function getCacheProvider() {
     let cache;
     switch (cacheProvider) {
         case "github":
-            cache = await import('./cache-CiHyYWgw.js');
+            cache = await import('./cache-BufynMn1.js');
             break;
         case "warpbuild":
-            cache = await import('./cache-DlcOwRr7.js');
+            cache = await import('./cache-pmZSc9im.js');
             break;
         default:
             throw new Error(`The \`cache-provider\` \`${cacheProvider}\` is not valid.`);
@@ -34523,6 +34523,8 @@ class CacheConfig {
     cacheKey = "";
     /** The secondary (restore) key that only contains the prefix and environment */
     restoreKey = "";
+    /** The keys a restore tries after `cacheKey`, in order. */
+    restoreKeys = [];
     /** Whether to cache CARGO_HOME/.bin */
     cacheBin = true;
     /** The workspace configurations */
@@ -34714,6 +34716,17 @@ class CacheConfig {
             key += `-${lockHash}`;
         }
         self.cacheKey = key;
+        self.restoreKeys = [self.restoreKey];
+        // A commit-suffixed key, for a backend that keeps the FIRST save of a key
+        // (WarpBuild and GitHub refuse a second one). A refreshing run saves a new
+        // key, and every run restores the `restore-suffix` entry (the merge base),
+        // then the newest entry for this lockfile, then any for this environment.
+        const keySuffix = getInput("key-suffix").trim();
+        const restoreSuffix = getInput("restore-suffix").trim();
+        if (keySuffix) {
+            self.cacheKey = `${key}-${keySuffix}`;
+            self.restoreKeys = [...(restoreSuffix ? [`${key}-${restoreSuffix}`] : []), key, self.restoreKey];
+        }
         self.cachePaths = [path__default.join(CARGO_HOME, "registry"), path__default.join(CARGO_HOME, "git")];
         if (self.cacheBin) {
             self.cachePaths = [
@@ -34768,8 +34781,10 @@ class CacheConfig {
         for (const path of this.cachePaths) {
             info(`    ${path}`);
         }
-        info(`Restore Key:`);
-        info(`    ${this.restoreKey}`);
+        info(`Restore Keys:`);
+        for (const key of this.restoreKeys) {
+            info(`    ${key}`);
+        }
         info(`Cache Key:`);
         info(`    ${this.cacheKey}`);
         info(`.. Prefix:`);
